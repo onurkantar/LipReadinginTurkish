@@ -17,7 +17,7 @@ import numpy as np
 import os
 
 # Playing video from file:
-cap = cv2.VideoCapture('alitest.mp4')
+cap = cv2.VideoCapture('testVideo.mp4')
 
 try:
     if not os.path.exists('data'):

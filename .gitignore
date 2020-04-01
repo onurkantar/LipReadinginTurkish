@@ -1,3 +1,4 @@
 dir_to_ignore/
 data
 ignoreFolder
+face_recognition\__pycache__

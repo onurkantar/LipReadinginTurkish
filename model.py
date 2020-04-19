@@ -1,49 +1,66 @@
 import numpy as np
-from keras import Model
 from keras.models import Sequential
-from keras.layers import Convolution2D, MaxPooling2D, ZeroPadding2D, Input, MaxPooling3D, TimeDistributed
-from keras.layers import Activation, Dropout, Flatten, Dense,ConvLSTM2D,BatchNormalization
+from keras.layers import Convolution2D, MaxPooling2D, ZeroPadding2D
+from keras.layers import Activation, Dropout, Flatten, Dense
 from keras.regularizers import l2
+from keras import optimizers
 
-def generate_convlstm_model(frames, channels, pixels_x, pixels_y, categories):
-      
-    trailer_input  = Input(shape=(frames, channels, pixels_x, pixels_y)
-                    , name='trailer_input')
+def create_model(img_width, img_height,keyword_count):
+    model = Sequential()
+    model.add(ZeroPadding2D((1, 1), input_shape=(3, img_width, img_height)))
     
-    first_ConvLSTM = ConvLSTM2D(filters=20, kernel_size=(3, 3)
-                       , data_format='channels_first'
-                       , recurrent_activation='hard_sigmoid'
-                       , activation='tanh'
-                       , padding='same',
-                        return_sequences=True)(trailer_input)
-    first_BatchNormalization = BatchNormalization()(first_ConvLSTM)
-    first_Pooling = MaxPooling3D(pool_size=(1, 2, 2), padding='same', data_format='channels_first')(first_BatchNormalization)
+    model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_2'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
     
-    second_ConvLSTM = ConvLSTM2D(filters=10, kernel_size=(3, 3)
-                        , data_format='channels_first'
-                        , padding='same', return_sequences=True)(first_Pooling)
-    second_BatchNormalization = BatchNormalization()(second_ConvLSTM)
-    second_Pooling = MaxPooling3D(pool_size=(1, 3, 3), padding='same', data_format='channels_first')(second_BatchNormalization)
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_1'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_2'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
     
-    outputs = [branch(second_Pooling, category) for category in categories]
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_1'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_2'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_3'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
     
-    seq = Model(inputs=trailer_input, outputs=outputs, name='Model ')
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_1'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_2'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_3'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
     
-    return seq
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_1'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_2'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_3'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
-def branch(last_convlstm_layer, name):
-  
-    branch_ConvLSTM = ConvLSTM2D(filters=5, kernel_size=(3, 3)
-                        , data_format='channels_first'
-                        , stateful = False
-                        , kernel_initializer='random_uniform'
-                        , padding='same', return_sequences=True)(last_convlstm_layer)
-    branch_Pooling = MaxPooling3D(pool_size=(1, 2, 2), padding='same', data_format='channels_first')(branch_ConvLSTM)
-    flat_layer = TimeDistributed(Flatten())(branch_Pooling)
-    
-    first_Dense = TimeDistributed(Dense(512,))(flat_layer)
-    second_Dense = TimeDistributed(Dense(32,))(first_Dense)
-    
-    target = TimeDistributed(Dense(1), name=name)(second_Dense)
-    
-    return target
+    # build a classifier model to put on top of the convolutional model
+    top_model = Sequential()
+    top_model.add(Flatten(input_shape=model.output_shape[1:]))
+    # with l2 regularizer
+    top_model.add(Dense(4096, activation='relu', W_regularizer=l2(0.1)))
+    # drop out layer    
+    top_model.add(Dropout(0.5))
+    # with l2 regularizer
+    top_model.add(Dense(4096, activation='relu', W_regularizer=l2(0.1)))
+    # drop out layer
+    top_model.add(Dropout(0.5))
+    top_model.add(Dense(keyword_count, activation='softmax'))
+    model.add(top_model)
+    return model
+
+def train_model(my_model):
+
+    my_model.compile(loss='categorical_crossentropy',
+              optimizer=optimizers.SGD(lr=0.00001, decay=1e-6, momentum=0.9),
+              metrics=['accuracy'])

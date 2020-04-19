@@ -1,11 +1,36 @@
 import numpy as np
 import cv2
+import main
+from os.path import isfile, join
+from os import listdir
+
+def get_video_paths(videoName , frames):
+    return_list = []
+    for f in frames:
+        if(f.split('')[0] == videoName):
+            return_list.append(f)
+
+    return return_list
 
 #read from folder result_lip and write to same folder with name concate-output.jpg
-def concate_images(): 
-	concate_seq= np.array([0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,10,11,12,13,14,14])
+def concate_images(framePath,videoName):
+	#concate_seq= np.array([0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,10,11,12,13,14,14])
 	#read image
-	path="result_lip/"
+	path=main.data_path
+	path += framePath
+
+	filenames = [f for f in listdir(path) if isfile(join(path, f))]
+
+	matched_filenames = get_video_paths(videoName,filenames)
+	layer_images = []
+
+	for i in matched_filenames:
+    		layer_images.append(cv2.imread(path+i, cv2.IMREAD_COLOR))
+
+	layers = []
+
+	for i in layer_number:
+    		
 	im_1 = cv2.imread(path+"0.jpg", cv2.IMREAD_COLOR)
 	im_2 = cv2.imread(path+"0.jpg", cv2.IMREAD_COLOR)
 	im_3 = cv2.imread(path+"1.jpg", cv2.IMREAD_COLOR)

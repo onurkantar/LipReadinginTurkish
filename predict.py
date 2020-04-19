@@ -1,22 +1,18 @@
 import numpy as np
 from keras import optimizers
 import model
+import enviroment as env
 from keras.preprocessing import image as image_utils
 
-# 15 is Next
-# 16 is Previous
-# 17 is start
-# 18 is stop
 #örnek ["Stop navigation", "Excuse me"]
-class_names=[]
-weights_path="model/weights-VggFinetune-17-0.65.f5"
+weights_path="./model/weights.f5"
 
 # Build VGG model
-model = model.create_model(256, 256,0)
+my_model = model.generate_convlstm_model(90,3,256, 256,env.class_names)
 # Load weights for model
-model.load_weights(weights_path)
+my_model.load_weights(weights_path)
 
-model.compile(loss='categorical_crossentropy',
+my_model.compile(loss='categorical_crossentropy',
               optimizer=optimizers.SGD(lr=0.00001, decay=1e-6, momentum=0.9),
               metrics=['accuracy'])
 
@@ -25,7 +21,7 @@ def predict_by_model(path):
 
     print("[INFO] loading and preprocessing image...")
     input_image = load_and_prcoess_image(path)
-    prediction = model.predict(input_image)
+    prediction = my_model.predict(input_image)
     prediction_class = np.argmax(prediction, axis=1)
 
     if(is_confidence_too_low(prediction)):
@@ -33,10 +29,10 @@ def predict_by_model(path):
         write_to_txt("result_lip/text.txt", "Can you say again? Please")
 
     else:
-        print(class_names[prediction_class[0]])
+        print(env.class_names[prediction_class[0]])
         print(prediction_class[0]+1)
         print(prediction[0])
-        write_to_txt("result_lip/text.txt", class_names[prediction_class[0]])
+        write_to_txt("result_lip/text.txt", env.class_names[prediction_class[0]])
 
     # ID of Good Bye is 5
     if(prediction_class[0]+1==5):

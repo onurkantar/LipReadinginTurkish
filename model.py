@@ -16,7 +16,7 @@ classes = env.class_names
 SIZE = (256, 256)
 CHANNELS = 1
 NBFRAME = 30
-BS = 8
+BS = 1
 
 glob_pattern='ignoreFolder/{classname}/*.mp4'
 
@@ -70,7 +70,7 @@ def train_model(my_model,train,valid):
     validation_data=valid,
     verbose=1,
     epochs=EPOCHS,
-    callbacks=[my_callbacks]
+    callbacks=my_callbacks
     )
 
 def build_convnet(shape=(256, 256, 3)):
@@ -103,7 +103,7 @@ def build_convnet(shape=(256, 256, 3)):
     model.add(GlobalMaxPool2D())
     return model
 
-def action_model(shape=(40, 256, 256, 3), nbout=3):
+def action_model(shape=(40, 256, 256, 3), nbout=len(env.class_names)):
         # Create our convnet with (112, 112, 3) input shape
     convnet = build_convnet(shape[1:])
     
@@ -124,7 +124,7 @@ def action_model(shape=(40, 256, 256, 3), nbout=3):
     model.add(Dense(nbout, activation='softmax'))
     return model
 
-def build_mobilenet(shape=(256, 256, 3), nbout=3):
+def build_mobilenet(shape=(256, 256, 3), nbout=len(env.class_names)):
     model = keras.applications.mobilenet.MobileNet(
         include_top=False,
         input_shape=shape,

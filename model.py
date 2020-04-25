@@ -5,8 +5,9 @@ from keras.layers import Activation, Dropout, Flatten, Dense, LSTM, Embedding
 from keras.regularizers import l2
 from keras import optimizers
 from keras.layers import Conv2D, BatchNormalization, MaxPool2D, GlobalMaxPool2D
-from keras.callbacks import callbacks
+from keras.callbacks import ReduceLROnPlateau
 import keras
+import tensorflow.keras as ks
 from keras_video import VideoFrameGenerator
 
 import enviroment as env
@@ -59,19 +60,25 @@ def train_model(my_model,train,valid):
     EPOCHS=50
     # create a "chkp" directory before to run that
     # because ModelCheckpoint will write models inside
-
+    earlyStop = Callback()
+    checkpoint = ks.callbacks.ModelCheckpoint('model.h5',save_best_only=True, monitor='val_acc', mode='max')
     my_callbacks = [
-    callbacks.ReduceLROnPlateau(verbose=1),
-    callbacks.ModelCheckpoint('chkp/weights.{epoch:02d}-{val_loss:.2f}.hdf5',verbose=1),]
+    ReduceLROnPlateau(verbose=1),
+    checkpoint]
     
     return my_model.fit_generator(
     train,
     validation_data=valid,
     verbose=1,
     epochs=EPOCHS,
-    callbacks=my_callbacks
+    callbacks=[my_callbacks,earlyStop]
     )
 
+class Callback(ks.callbacks.Callback):
+    def on_epoch_end(self,epoch,logs={}):
+        if(logs['val_acc'] >= 0.999):
+            print("\nValication accuracy reached more than 99.9%, training stopped")
+            self.model.stop_training=True
     
     
 def build_convnet(shape=(256, 256, 3)):

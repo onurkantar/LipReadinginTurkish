@@ -1,66 +1,140 @@
 import numpy as np
 from keras.models import Sequential
-from keras.layers import Convolution2D, MaxPooling2D, ZeroPadding2D
-from keras.layers import Activation, Dropout, Flatten, Dense
+from keras.layers import Convolution2D, MaxPooling2D, ZeroPadding2D, TimeDistributed
+from keras.layers import Activation, Dropout, Flatten, Dense, LSTM, Embedding
 from keras.regularizers import l2
 from keras import optimizers
+from keras.layers import Conv2D, BatchNormalization, MaxPool2D, GlobalMaxPool2D
+from keras.callbacks import callbacks
+import keras
+from keras_video import VideoFrameGenerator
 
-def create_model(img_width, img_height,keyword_count):
-    model = Sequential()
-    model.add(ZeroPadding2D((1, 1), input_shape=(3, img_width, img_height)))
-    
-    model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1'))
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_2'))
-    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-    
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_1'))
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_2'))
-    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-    
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_1'))
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_2'))
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_3'))
-    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-    
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_1'))
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_2'))
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_3'))
-    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-    
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_1'))
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_2'))
-    model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_3'))
-    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
+import enviroment as env
 
-    # build a classifier model to put on top of the convolutional model
-    top_model = Sequential()
-    top_model.add(Flatten(input_shape=model.output_shape[1:]))
-    # with l2 regularizer
-    top_model.add(Dense(4096, activation='relu', W_regularizer=l2(0.1)))
-    # drop out layer    
-    top_model.add(Dropout(0.5))
-    # with l2 regularizer
-    top_model.add(Dense(4096, activation='relu', W_regularizer=l2(0.1)))
-    # drop out layer
-    top_model.add(Dropout(0.5))
-    top_model.add(Dense(keyword_count, activation='softmax'))
-    model.add(top_model)
+classes = env.class_names
+
+SIZE = (256, 256)
+CHANNELS = 1
+NBFRAME = 30
+BS = 8
+
+glob_pattern='ignoreFolder/{classname}/*.mp4'
+
+def generate_data():
+    data_aug = keras.preprocessing.image.ImageDataGenerator(
+    zoom_range=.1,
+    horizontal_flip=True,
+    rotation_range=8,
+    width_shift_range=.2,
+    height_shift_range=.2)
+
+    train = VideoFrameGenerator(
+    classes=classes, 
+    glob_pattern=glob_pattern,
+    nb_frames=NBFRAME,
+    split=.20, 
+    shuffle=True, #TODO burayı incele
+    batch_size=BS,
+    target_shape=SIZE,
+    nb_channel=CHANNELS,
+    transformation=data_aug,
+    use_frame_cache=False)
+
+    valid = train.get_validation_generator()
+
+    return valid,train
+
+def create_model():
+    INSHAPE=(NBFRAME,) + SIZE + (CHANNELS,) # (5, 112, 112, 3)
+    model = action_model(INSHAPE, len(classes))
+    optimizer = optimizers.Adam(1e-3)
+    model.compile(
+    optimizer,
+    'categorical_crossentropy',
+    metrics=['acc'])
     return model
 
-def train_model(my_model):
+def train_model(my_model,train,valid):
 
-    my_model.compile(loss='categorical_crossentropy',
-              optimizer=optimizers.SGD(lr=0.00001, decay=1e-6, momentum=0.9),
-              metrics=['accuracy'])
+    EPOCHS=50
+    # create a "chkp" directory before to run that
+    # because ModelCheckpoint will write models inside
+
+    my_callbacks = [
+    callbacks.ReduceLROnPlateau(verbose=1),
+    callbacks.ModelCheckpoint('chkp/weights.{epoch:02d}-{val_loss:.2f}.hdf5',verbose=1),]
+    
+    return my_model.fit_generator(
+    train,
+    validation_data=valid,
+    verbose=1,
+    epochs=EPOCHS,
+    callbacks=my_callbacks
+    )
+
+    
+    
+def build_convnet(shape=(256, 256, 3)):
+    momentum = .9
+    model = Sequential()
+    model.add(Conv2D(64, (3,3), input_shape=shape,
+        padding='same', activation='relu'))
+    model.add(Conv2D(64, (3,3), padding='same', activation='relu'))
+    model.add(BatchNormalization(momentum=momentum))
+    
+    model.add(MaxPool2D())
+    
+    model.add(Conv2D(128, (3,3), padding='same', activation='relu'))
+    model.add(Conv2D(128, (3,3), padding='same', activation='relu'))
+    model.add(BatchNormalization(momentum=momentum))
+    
+    model.add(MaxPool2D())
+    
+    model.add(Conv2D(256, (3,3), padding='same', activation='relu'))
+    model.add(Conv2D(256, (3,3), padding='same', activation='relu'))
+    model.add(BatchNormalization(momentum=momentum))
+    
+    model.add(MaxPool2D())
+    
+    model.add(Conv2D(512, (3,3), padding='same', activation='relu'))
+    model.add(Conv2D(512, (3,3), padding='same', activation='relu'))
+    model.add(BatchNormalization(momentum=momentum))
+    
+    # flatten...
+    model.add(GlobalMaxPool2D())
+    return model
+
+def action_model(shape=(40, 256, 256, 3), nbout=3):
+        # Create our convnet with (112, 112, 3) input shape
+    convnet = build_convnet(shape[1:])
+    
+    # then create our final model
+    model = Sequential()
+    # add the convnet with (5, 112, 112, 3) shape
+    model.add(TimeDistributed(convnet, input_shape=shape))
+    # here, you can also use GRU or LSTM
+    model.add(LSTM(64))
+    # and finally, we make a decision network
+    model.add(Dense(1024, activation='relu'))
+    model.add(Dropout(.5))
+    model.add(Dense(512, activation='relu'))
+    model.add(Dropout(.5))
+    model.add(Dense(128, activation='relu'))
+    model.add(Dropout(.5))
+    model.add(Dense(64, activation='relu'))
+    model.add(Dense(nbout, activation='softmax'))
+    return model
+
+def build_mobilenet(shape=(256, 256, 3), nbout=3):
+    model = keras.applications.mobilenet.MobileNet(
+        include_top=False,
+        input_shape=shape,
+        weights='imagenet')
+    # Keep 9 layers to train﻿﻿
+    trainable = 9
+    for layer in model.layers[:-trainable]:
+        layer.trainable = False
+    for layer in model.layers[-trainable:]:
+        layer.trainable = True
+    output = GlobalMaxPool2D()
+    return keras.Sequential([model, output])

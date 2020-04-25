@@ -1,7 +1,8 @@
 import os
 import dlib
+import glob
 
-class_names=["Günaydın","Corona","Merhaba","Selam","Teşekkürler"]
+class_names = [i.split(os.path.sep)[1] for i in glob.glob('data/*')]
 
 data_path = os.getcwd() + '\\data\\'
 

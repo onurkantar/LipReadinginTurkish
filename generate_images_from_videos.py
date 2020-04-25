@@ -67,10 +67,10 @@ def generate_images():
             photos.append(clahe_image2)
             frameNumber +=1
 
-        if frameNumber > 90:
-            break
-
-        while frameNumber <= 90 :
+            if frameNumber > 80:
+                break
+        
+        while frameNumber <= 80 :
             
             if frameNumber % 2 != 0:
                 frameNumber += 1

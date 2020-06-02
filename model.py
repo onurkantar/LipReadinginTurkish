@@ -19,6 +19,21 @@ NBFRAME = 30
 BS = 1
 
 glob_pattern='ignoreFolder/{classname}/*.mp4'
+pred_pattern='predict/8.mp4'
+
+def generate_predict_data():
+    retVal = VideoFrameGenerator(
+    is_training = False,
+    classes=classes, 
+    glob_pattern=pred_pattern,
+    nb_frames=NBFRAME,
+    shuffle=False, #TODO burayı incele
+    batch_size=BS,
+    target_shape=SIZE,
+    nb_channel=CHANNELS,
+    use_frame_cache=False)
+
+    return retVal
 
 def generate_data():
     data_aug = keras.preprocessing.image.ImageDataGenerator(
@@ -32,8 +47,8 @@ def generate_data():
     classes=classes, 
     glob_pattern=glob_pattern,
     nb_frames=NBFRAME,
-    split=.20, 
-    shuffle=True, #TODO burayı incele
+    split=.42, 
+    shuffle=False, #TODO burayı incele
     batch_size=BS,
     target_shape=SIZE,
     nb_channel=CHANNELS,
@@ -47,7 +62,7 @@ def generate_data():
 def create_model():
     INSHAPE=(NBFRAME,) + SIZE + (CHANNELS,) # (5, 112, 112, 3)
     model = action_model(INSHAPE, len(classes))
-    optimizer = optimizers.Adam(1e-3)
+    optimizer = optimizers.Adam(0.00000001)
     model.compile(
     optimizer,
     'categorical_crossentropy',
@@ -56,7 +71,7 @@ def create_model():
 
 def train_model(my_model,train,valid):
 
-    EPOCHS=50
+    EPOCHS=1
     # create a "chkp" directory before to run that
     # because ModelCheckpoint will write models inside
     my_callbacks = [

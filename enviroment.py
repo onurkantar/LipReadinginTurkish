@@ -2,7 +2,7 @@ import os
 import dlib
 import glob
 
-class_names = [i.split(os.path.sep)[1] for i in glob.glob('data/*')]
+class_names = [i.split(os.path.sep)[1] for i in glob.glob('ignoreFolder/*')]
 
 data_path = os.getcwd() + '\\data\\'
 

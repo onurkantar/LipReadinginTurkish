@@ -5,7 +5,7 @@ import enviroment as env
 from keras.preprocessing import image as image_utils
 
 #örnek ["Stop navigation", "Excuse me"]
-weights_path="./model/weights.f5"
+weights_path="./chkp/weights.hdf5"
 
 # Build VGG model
 my_model = model.generate_convlstm_model(90,3,256, 256,env.class_names)

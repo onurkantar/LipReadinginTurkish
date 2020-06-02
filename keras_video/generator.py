@@ -62,6 +62,7 @@ class VideoFrameGenerator(Sequence):
             split_test: float = None,
             split_val: float = None,
             nb_channel: int = 3,
+            is_training: bool = True,
             glob_pattern: str = './videos/{classname}/*.avi',
             use_headers: bool = True,
             *args,
@@ -111,6 +112,7 @@ class VideoFrameGenerator(Sequence):
         # be sure that classes are well ordered
         classes.sort()
 
+        self.is_training = is_training
         self.rescale = rescale
         self.classes = classes
         self.batch_size = batch_size
@@ -316,7 +318,8 @@ class VideoFrameGenerator(Sequence):
         shape = self.target_shape
         nbframe = self.nbframe
 
-        labels = []
+        if(self.is_training):
+            labels = []
         images = []
 
         indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
@@ -329,12 +332,14 @@ class VideoFrameGenerator(Sequence):
                 transformation = self._random_trans[i]
 
             video = self.files[i]
-            classname = self._get_classname(video)
+            if(self.is_training):
+                classname = self._get_classname(video)
 
             # create a label array and set 1 to the right column
-            label = np.zeros(len(classes))
-            col = classes.index(classname)
-            label[col] = 1.
+            if(self.is_training):
+                label = np.zeros(len(classes))
+                col = classes.index(classname)
+                label[col] = 1.
 
             if video not in self.__frame_cache:
                 frames = self._get_frames(
@@ -359,9 +364,12 @@ class VideoFrameGenerator(Sequence):
 
             # add the sequence in batch
             images.append(frames)
-            labels.append(label)
-
-        return np.array(images), np.array(labels)
+            if(self.is_training):
+                labels.append(label)
+        if(self.is_training):
+            return np.array(images), np.array(labels)
+        else:
+            return np.array(images)
 
     def _get_classname(self, video: str) -> str:
         """ Find classname from video filename following the pattern """

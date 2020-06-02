@@ -53,16 +53,21 @@ def generate_images():
                 
             x = []
             y = []
-            for i in range(1,68):
+            for i in range(50,68):
                 x.append(shape.part(i).x)
                 y.append(shape.part(i).y)
     
             img = Image.fromarray(frame, 'RGB')
-            crop = img.crop((min(x),min(y),max(x),max(y)))
-            crop = crop.resize(size)
+            crop = img.crop((min(x)-20,min(y)-20,max(x)+20,max(y)+20))
+            #crop = crop.resize(size)
+
             gray = cv2.cvtColor(np.array(crop), cv2.COLOR_BGR2GRAY)
             clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
             clahe_image2 = clahe.apply(gray)
+            
+            cv2.imwrite('b.png',clahe_image2)
+            cv2.imwrite('a.png',gray)
+            
             
             photos.append(clahe_image2)
             frameNumber +=1
